@@ -65,6 +65,39 @@ Roughly ordered by value-to-effort. Not commitments — a menu.
 
 Newest first. Format: `## YYYY-MM-DD — summary`, then what changed and why.
 
+### 2026-06-08 — Fix: hidden markers were still clickable
+**Reported:** at Oct 11 2021, Cedar Rapids showed no markers, yet clicking the
+area opened observation popups.
+
+**Diagnosis (not a paint bug):** all 168 Cedar Rapids observations are dated
+*after* Oct 11 2021 — none existed by that date, so cumulative mode correctly drew
+nothing. But hidden markers were set to `fillOpacity:0` *without* clearing
+interactivity, and Leaflet's canvas hit-test reads `options.interactive` live
+(`L.Canvas._onClick`). So those 168 future dots were invisible but clickable,
+creating the illusion that markers should be there.
+
+- **`app.js`** — `render()` now sets `marker.options.interactive = false` for
+  hidden markers and `true` for visible ones, so clickability tracks what's drawn.
+- **Verified:** simulated render at 2021-10-11 (cumulative) — CR clickable went
+  168 → 0, matching 0 drawn; global 800 shown. `node --check` OK. Applies to both
+  modes (future dates in cumulative; outside-window in window mode).
+
+### 2026-06-08 — Stacked year/month/day timeline ticker
+Replaced the single right-aligned date string (which jittered as month/day widths
+changed) with three fixed-position slots stacked vertically.
+
+- **`index.html`** — `#datelabel` is now a column of `#dl-year` / `#dl-month` /
+  `#dl-day` spans (role=group, aria-label "Current date").
+- **`style.css`** — `.datelabel` is a fixed-width (56px) centered flex column;
+  year (ink), month (uppercase, muted, letter-spaced), day (large, accent). All
+  `tabular-nums` so digits don't shift. Mobile width 50px.
+- **`app.js`** — dropped `labelOf`; added `MONTHS` + `setDateTicker(day)` writing
+  the three slots from UTC fields; `render()` calls it.
+- **Why:** during playback the centered fixed slots stay put, so the eye can read
+  the changing day/month/year without the text reflowing.
+- **Verified:** syntax; no dangling `labelOf`; HTML/JS ids match; date math
+  (e.g. 2026-06-02 → 2026 / Jun / 2). Visual confirmation in-browser still pending.
+
 ### 2026-06-08 — Fix: stars rendered nothing after the cutoff date
 **Bug:** observations after 2019-04-18 didn't plot at all. `StarMarker._updatePath`
 wrote `r._drawnLayers[this._leaflet_id] = this`, but `_drawnLayers` doesn't exist

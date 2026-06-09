@@ -97,7 +97,7 @@ All logic lives here. Major sections:
 | `COLORS` / `ORDER` | Per-group dot colors and display order. Keyed by major group, including the split-out reptile orders (Squamata/Testudines/Crocodylia). |
 | `StarMarker` | `L.CircleMarker` subclass that draws a 5-pointed star on the canvas (overrides `_updatePath`). Used for observations after `STAR_AFTER`; see §5. |
 | state vars | `OBS`, `MARKERS`, `MAP_ACTIVE`/`GUIDE_ACTIVE` (independent per tab), `SPECIES`, `dayMin/dayMax/curDay`, `mode`, `windowDays`, `speed`, `playing`. |
-| helpers | `dayOf` (date→epoch-day int), `labelOf`, `esc` (HTML-escape), `photoAt` (swap `square`→`small`/etc. in a photo URL). |
+| helpers | `dayOf` (date→epoch-day int), `setDateTicker` (writes the stacked year/month/day slots), `esc` (HTML-escape), `photoAt` (swap `square`→`small`/etc. in a photo URL). |
 | boot | `fetch()` the JSON → `init()`; failures render a `#fatal` overlay with recovery hints. |
 | `buildGroups` | Builds filter chips for both tabs from `meta.groups`. |
 | `initMap` / `buildMarkers` | Leaflet map (`preferCanvas:true`, CARTO `dark_all` tiles); one canvas marker per geolocated obs — `StarMarker` if observed after `STAR_AFTER`, else `circleMarker` — lazy-bound popup, `fitBounds`. |
@@ -194,6 +194,14 @@ section.**
   still open). To change the date, edit the `STAR_AFTER` constant in `app.js`.
 - **Filters:** group chips toggle membership in `MAP_ACTIVE`; `render()` reflects
   it immediately. all/none bulk-toggle.
+- **Date ticker:** `setDateTicker()` writes year / month / day into three fixed,
+  centered, tabular-numeral slots (`#dl-year`/`#dl-month`/`#dl-day`) so the values
+  hold their positions instead of shifting as the timeline plays.
+- **Interactivity follows visibility:** `render()` keeps each
+  `marker.options.interactive` in sync with whether the marker is actually drawn,
+  so a hidden marker (a future date in cumulative mode, or one outside the window)
+  can't be clicked. Without this, invisible markers opened popups for dots you
+  couldn't see (the canvas hit-test reads `options.interactive` live).
 
 ### Field guide gallery
 - **`aggregateSpecies()`** groups observations by `ti` (taxon id; falls back to

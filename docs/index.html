@@ -41,7 +41,11 @@
       <div class="timeline-row">
         <button id="play" class="play" type="button" aria-label="Play">▶</button>
         <input id="scrub" type="range" min="0" max="100" value="100" aria-label="Timeline" />
-        <span id="datelabel" class="datelabel">—</span>
+        <div id="datelabel" class="datelabel" role="group" aria-label="Current date">
+          <span id="dl-year" class="dl-year">—</span>
+          <span id="dl-month" class="dl-month">—</span>
+          <span id="dl-day" class="dl-day">—</span>
+        </div>
       </div>
       <div class="timeline-row controls">
         <span class="seg" role="group" aria-label="Time-lapse mode">

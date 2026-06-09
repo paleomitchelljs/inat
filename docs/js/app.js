@@ -20,6 +20,8 @@ const ORDER = ['Aves', 'Plantae', 'Amphibia', 'Insecta',
 const MS_PER_DAY = 86400000;
 const HIGHLIGHT_DAYS = 21;   // recent observations pulse larger in cumulative mode
 const STAR_AFTER = '2019-04-18';  // observations strictly after this date render as stars
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ---- state ----
 let META, OBS = [], MAP, CANVAS, USER = 'mitchelljs';
@@ -35,8 +37,14 @@ const $ = (id) => document.getElementById(id);
 
 // ---- helpers ----
 const dayOf = (dateStr) => Math.floor(Date.parse(dateStr + 'T00:00:00Z') / MS_PER_DAY);
-const labelOf = (day) => new Date(day * MS_PER_DAY).toLocaleDateString('en-US',
-  { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
+// Write the stacked year/month/day ticker (fixed slots; see .datelabel CSS).
+function setDateTicker(day) {
+  const dt = new Date(day * MS_PER_DAY);
+  $('dl-year').textContent = dt.getUTCFullYear();
+  $('dl-month').textContent = MONTHS[dt.getUTCMonth()];
+  $('dl-day').textContent = dt.getUTCDate();
+}
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const photoAt = (url, size) => (url ? url.replace(/\/square\.(jpe?g|png|gif)/i, '/' + size + '.$1') : null);
@@ -219,9 +227,13 @@ function render() {
 
     if (!visible) {
       if (m._op !== 0) { m.setStyle({ fillOpacity: 0, radius: 4 }); m._op = 0; m._rad = 4; }
+      // A hidden marker (future date in cumulative, or outside the window) must
+      // not be clickable — otherwise it opens a popup for a dot you can't see.
+      if (m.options.interactive) m.options.interactive = false;
       continue;
     }
     shown++;
+    if (!m.options.interactive) m.options.interactive = true;
 
     let op, rad;
     if (mode === 'cumulative') {
@@ -236,7 +248,7 @@ function render() {
     if (m._op !== op || m._rad !== rad) { m.setStyle({ fillOpacity: op, radius: rad }); m._op = op; m._rad = rad; }
   }
 
-  $('datelabel').textContent = labelOf(curDay);
+  setDateTicker(curDay);
   $('count').textContent = shown.toLocaleString() + ' shown';
   $('scrub').value = String(curDay - dayMin);
 }
