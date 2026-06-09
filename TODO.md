@@ -65,6 +65,22 @@ Roughly ordered by value-to-effort. Not commitments — a menu.
 
 Newest first. Format: `## YYYY-MM-DD — summary`, then what changed and why.
 
+### 2026-06-08 — Fix: stars rendered nothing after the cutoff date
+**Bug:** observations after 2019-04-18 didn't plot at all. `StarMarker._updatePath`
+wrote `r._drawnLayers[this._leaflet_id] = this`, but `_drawnLayers` doesn't exist
+in Leaflet 1.9.4 (verified against `leaflet-src.js` — the real
+`L.Canvas._updateCircle` never references it). That threw a `TypeError` inside the
+canvas `_draw` loop; because markers are added in date order, every circle drew
+first, then the first star threw and aborted the loop, leaving all stars unpainted.
+
+- **`app.js`** — removed the `_drawnLayers` line; `_updatePath` now mirrors
+  `_updateCircle` exactly (beginPath → star path → `_fillStroke`). Rounded `outer`
+  and floored `inner` at 1px to match circle crispness.
+- **Lesson:** `node --check` only catches syntax; this was a runtime throw. Added
+  a headless simulation of `_updatePath` against a mock canvas (no throw; 1 moveTo
+  + 9 lineTo + closePath; top point straight up; `_fillStroke` once, incl. the
+  opacity-0 hidden case). Still want a real-browser confirmation.
+
 ### 2026-06-08 — Split Reptilia into orders
 Per request, the "Reptilia" major group is now broken into its taxonomic orders.
 

@@ -150,9 +150,8 @@ const StarMarker = L.CircleMarker.extend({
     if (!r._drawing || this._empty()) return;
     const ctx = r._ctx;
     const p = this._point;
-    const outer = Math.max(this._radius, 1);
-    const inner = outer * 0.45;
-    r._drawnLayers[this._leaflet_id] = this;
+    const outer = Math.max(Math.round(this._radius), 1);
+    const inner = Math.max(outer * 0.45, 1);
     ctx.beginPath();
     for (let i = 0; i < 10; i++) {
       const rad = i % 2 === 0 ? outer : inner;
@@ -162,7 +161,7 @@ const StarMarker = L.CircleMarker.extend({
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.closePath();
-    r._fillStroke(ctx, this);
+    r._fillStroke(ctx, this);  // mirrors L.Canvas._updateCircle; no _drawnLayers (absent in 1.9.4)
   },
 });
 

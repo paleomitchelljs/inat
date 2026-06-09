@@ -229,6 +229,11 @@ over HTTP.
 
 ## 8. Known limitations & design decisions
 
+- **`StarMarker` depends on Leaflet 1.9.4 canvas internals** (`_renderer._ctx`,
+  `_drawing`, `_fillStroke`, `_point`, `_radius`). These are stable but private;
+  re-verify `_updatePath` against `L.Canvas._updateCircle` if the Leaflet version
+  is bumped. (A wrong assumption here — referencing the nonexistent `_drawnLayers`
+  — already caused a render-abort bug once; see TODO log.)
 - **No SRI on the Leaflet CDN tags.** Pinned to 1.9.4. A wrong Subresource
   Integrity hash silently breaks the whole page, and the hashes couldn't be
   verified reliably in the build sandbox, so they were omitted deliberately.
