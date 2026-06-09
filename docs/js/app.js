@@ -5,16 +5,21 @@
 // Canonical major-group colours + a sensible display order.
 const COLORS = {
   Aves: '#4C72B0', Plantae: '#55A868', Amphibia: '#C44E52', Insecta: '#DD8452',
-  Reptilia: '#8172B3', Mammalia: '#937860', Fungi: '#DA8BC3', Arachnida: '#CCB974',
+  // Reptilia is split into its orders; "Reptilia" remains a fallback for
+  // records identified only to class.
+  Squamata: '#8172B3', Testudines: '#2AA198', Crocodylia: '#E040FB', Reptilia: '#9E8BA8',
+  Mammalia: '#937860', Fungi: '#DA8BC3', Arachnida: '#CCB974',
   Mollusca: '#64B5CD', Actinopterygii: '#519DE9', Animalia: '#8C8C8C',
   Protozoa: '#A0522D', Chromista: '#1FA1A1', Unknown: '#7A7A7A',
 };
-const ORDER = ['Aves', 'Plantae', 'Amphibia', 'Insecta', 'Reptilia', 'Mammalia',
+const ORDER = ['Aves', 'Plantae', 'Amphibia', 'Insecta',
+  'Squamata', 'Testudines', 'Crocodylia', 'Reptilia', 'Mammalia',
   'Fungi', 'Arachnida', 'Mollusca', 'Actinopterygii', 'Animalia',
   'Protozoa', 'Chromista', 'Unknown'];
 
 const MS_PER_DAY = 86400000;
 const HIGHLIGHT_DAYS = 21;   // recent observations pulse larger in cumulative mode
+const STAR_AFTER = '2019-04-18';  // observations strictly after this date render as stars
 
 // ---- state ----
 let META, OBS = [], MAP, CANVAS, USER = 'mitchelljs';
@@ -135,16 +140,47 @@ function initMap() {
   }).addTo(MAP);
 }
 
+// Canvas star marker: a CircleMarker subclass that draws a 5-pointed star
+// instead of a circle. It still works with setStyle()/setRadius() and the canvas
+// renderer, so the time-lapse animation (radius/opacity) and click-to-popup
+// (inherited circle-based hit test) keep working unchanged.
+const StarMarker = L.CircleMarker.extend({
+  _updatePath: function () {
+    const r = this._renderer;
+    if (!r._drawing || this._empty()) return;
+    const ctx = r._ctx;
+    const p = this._point;
+    const outer = Math.max(this._radius, 1);
+    const inner = outer * 0.45;
+    r._drawnLayers[this._leaflet_id] = this;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 === 0 ? outer : inner;
+      const ang = (Math.PI / 5) * i - Math.PI / 2;  // first point straight up
+      const x = p.x + Math.cos(ang) * rad;
+      const y = p.y + Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    r._fillStroke(ctx, this);
+  },
+});
+
 function buildMarkers() {
+  const starAfter = dayOf(STAR_AFTER);
   const pts = [];
   OBS.forEach((o) => {
     if (o.lat == null || o.lng == null || !o.d) return;
-    const m = L.circleMarker([o.lat, o.lng], {
+    const day = dayOf(o.d);
+    const opts = {
       renderer: CANVAS, radius: 4, stroke: false,
       fillColor: COLORS[o.ic] || COLORS.Unknown, fillOpacity: 0,
-    });
+    };
+    const m = day > starAfter
+      ? new StarMarker([o.lat, o.lng], opts)
+      : new L.CircleMarker([o.lat, o.lng], opts);
     m._o = o;
-    m._day = dayOf(o.d);
+    m._day = day;
     m.bindPopup(() => popupHtml(o), { minWidth: 220, maxWidth: 220, closeButton: true });
     m.addTo(MAP);
     MARKERS.push(m);

@@ -25,6 +25,15 @@ API = "https://api.inaturalist.org/v1/observations"
 PER_PAGE = 200
 USER_AGENT = "inat-field-guide/1.0 (static guide builder; stdlib urllib)"
 
+# The "Reptilia" iconic taxon is split into its orders for finer grouping, keyed
+# by iNaturalist taxon id (present in each observation's taxon.ancestor_ids).
+REPTILE_ORDERS = {
+    26172: "Squamata",         # snakes & lizards
+    39532: "Testudines",       # turtles
+    26039: "Crocodylia",       # crocodilians
+    26162: "Rhynchocephalia",  # tuatara
+}
+
 # Some Python installs (notably python.org builds on macOS) ship without a
 # usable CA bundle. Prefer certifi's bundle when present; fall back to system.
 try:
@@ -61,6 +70,14 @@ def compact(o: dict) -> dict:
     coords = geo.get("coordinates") or []
     lng, lat = (coords[0], coords[1]) if len(coords) == 2 else (None, None)
     taxon = o.get("taxon") or {}
+    # Major group: iconic taxon, but split Reptilia into its order (turtles,
+    # squamates, crocodilians) when ancestry identifies one.
+    ic = taxon.get("iconic_taxon_name") or "Unknown"
+    if ic == "Reptilia":
+        for tid in taxon.get("ancestor_ids") or []:
+            if tid in REPTILE_ORDERS:
+                ic = REPTILE_ORDERS[tid]
+                break
     photos = o.get("photos") or []
     photo = photos[0].get("url") if photos else None
     return {
@@ -68,7 +85,7 @@ def compact(o: dict) -> dict:
         "d": o.get("observed_on"),            # date string YYYY-MM-DD
         "lat": round(lat, 5) if lat is not None else None,
         "lng": round(lng, 5) if lng is not None else None,
-        "ic": taxon.get("iconic_taxon_name") or "Unknown",
+        "ic": ic,                             # major group (Reptilia split by order)
         "ti": taxon.get("id"),                # taxon id (for gallery grouping + links)
         "n": taxon.get("name"),               # scientific name
         "c": taxon.get("preferred_common_name"),
