@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>iNaturalist Field Guide</title>
+<link rel="preconnect" href="https://unpkg.com" />
+<link rel="preconnect" href="https://inaturalist-open-data.s3.amazonaws.com" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">
+    <h1>Field&nbsp;Guide</h1>
+    <span id="subtitle">loading…</span>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-view="map" type="button">Time-lapse Map</button>
+    <button class="tab" data-view="guide" type="button">Field Guide</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ MAP VIEW ============ -->
+  <section id="view-map" class="view active">
+    <div id="map"></div>
+
+    <div id="filters" class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Major groups</span>
+        <span class="panel-actions">
+          <button id="chips-all" class="link" type="button">all</button>
+          <button id="chips-none" class="link" type="button">none</button>
+        </span>
+      </div>
+      <div id="group-chips" class="chips"></div>
+    </div>
+
+    <div id="timeline" class="panel">
+      <div class="timeline-row">
+        <button id="play" class="play" type="button" aria-label="Play">▶</button>
+        <input id="scrub" type="range" min="0" max="100" value="100" aria-label="Timeline" />
+        <span id="datelabel" class="datelabel">—</span>
+      </div>
+      <div class="timeline-row controls">
+        <span class="seg" role="group" aria-label="Time-lapse mode">
+          <button id="mode-cumulative" class="seg-btn active" type="button">Cumulative</button>
+          <button id="mode-window" class="seg-btn" type="button">Window</button>
+        </span>
+        <label id="window-ctl" class="ctl hidden">
+          <span>Window <b id="window-val">30</b>d</span>
+          <input id="window-size" type="range" min="7" max="365" value="30" />
+        </label>
+        <label class="ctl">
+          <span>Speed</span>
+          <input id="speed" type="range" min="1" max="10" value="5" />
+        </label>
+        <span id="count" class="count">—</span>
+      </div>
+    </div>
+
+    <div id="legend-note" class="hint">Press ▶ to watch observations appear over time. Toggle groups above.</div>
+  </section>
+
+  <!-- ============ GUIDE VIEW ============ -->
+  <section id="view-guide" class="view">
+    <div id="guide-controls">
+      <input id="guide-search" type="search" placeholder="Search common or scientific name…" />
+      <select id="guide-sort" aria-label="Sort species">
+        <option value="count">Most observed</option>
+        <option value="recent">Most recent</option>
+        <option value="name">A–Z (common)</option>
+        <option value="sci">A–Z (scientific)</option>
+      </select>
+      <span id="guide-count" class="count"></span>
+      <div id="guide-chips" class="chips"></div>
+    </div>
+    <div id="gallery"></div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
