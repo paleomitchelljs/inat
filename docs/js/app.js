@@ -24,7 +24,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ---- state ----
-let META, OBS = [], MAP, CANVAS, USER = 'mitchelljs';
+let META, OBS = [], MAP, CANVAS, TRAIL, USER = 'mitchelljs';
 let MARKERS = [];                 // one canvas circleMarker per geolocated obs
 const MAP_ACTIVE = new Set();     // active groups on the map tab
 const GUIDE_ACTIVE = new Set();   // active groups on the guide tab
@@ -146,7 +146,61 @@ function initMap() {
     subdomains: 'abcd', maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(MAP);
+  // Added before buildMarkers() so the trail canvas sits below the marker canvas.
+  TRAIL = new TrailLayer().addTo(MAP);
 }
+
+// Trail overlay: its own canvas in the overlay pane (below the marker canvas,
+// which is appended later by buildMarkers). In window mode, render() feeds it
+// the visible observations in chronological order and it strokes a segment
+// between each consecutive pair, colored by the newer observation's group and
+// faded by its recency — so movement over time reads as a path.
+const TrailLayer = L.Layer.extend({
+  onAdd: function (map) {
+    this._canvas = L.DomUtil.create('canvas', 'leaflet-zoom-hide');
+    this._canvas.style.position = 'absolute';
+    this._canvas.style.pointerEvents = 'none';
+    map.getPane('overlayPane').appendChild(this._canvas);
+    map.on('move viewreset zoomend resize', this._reset, this);
+    this._pts = [];
+    this._reset();
+    return this;
+  },
+  onRemove: function (map) {
+    map.off('move viewreset zoomend resize', this._reset, this);
+    L.DomUtil.remove(this._canvas);
+  },
+  // pts: [{ ll: L.LatLng, color: css, f: 0..1 recency }] in chronological order
+  setData: function (pts) { this._pts = pts; this._draw(); },
+  _reset: function () {
+    const size = this._map.getSize();
+    if (this._canvas.width !== size.x) this._canvas.width = size.x;
+    if (this._canvas.height !== size.y) this._canvas.height = size.y;
+    // Keep the canvas pinned to the viewport as the map pans.
+    L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]));
+    this._draw();
+  },
+  _draw: function () {
+    const ctx = this._canvas.getContext('2d');
+    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+    const pts = this._pts;
+    if (pts.length < 2) return;
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    let prev = this._map.latLngToContainerPoint(pts[0].ll);
+    for (let i = 1; i < pts.length; i++) {
+      const cur = this._map.latLngToContainerPoint(pts[i].ll);
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(cur.x, cur.y);
+      ctx.strokeStyle = pts[i].color;
+      ctx.globalAlpha = 0.12 + 0.55 * pts[i].f;
+      ctx.stroke();
+      prev = cur;
+    }
+    ctx.globalAlpha = 1;
+  },
+});
 
 // Canvas star marker: a CircleMarker subclass that draws a 5-pointed star
 // instead of a circle. It still works with setStyle()/setRadius() and the canvas
@@ -216,6 +270,9 @@ function render() {
   const hiThreshold = curDay - HIGHLIGHT_DAYS;
   const lo = curDay - windowDays;
   let shown = 0;
+  // MARKERS is chronological (OBS is sorted by (observed_on, id)), so pushing
+  // visible window-mode markers in loop order yields the trail in time order.
+  const trailPts = [];
 
   for (const m of MARKERS) {
     const o = m._o;
@@ -244,10 +301,12 @@ function render() {
       const f = Math.max(0, 1 - (curDay - day) / windowDays);
       op = 0.25 + 0.72 * f;
       rad = 3.8 + 3 * f;
+      trailPts.push({ ll: m.getLatLng(), color: m.options.fillColor, f });
     }
     if (m._op !== op || m._rad !== rad) { m.setStyle({ fillOpacity: op, radius: rad }); m._op = op; m._rad = rad; }
   }
 
+  if (TRAIL) TRAIL.setData(trailPts);   // empty outside window mode → cleared
   setDateTicker(curDay);
   $('count').textContent = shown.toLocaleString() + ' shown';
   $('scrub').value = String(curDay - dayMin);
@@ -398,6 +457,15 @@ function wireEvents() {
   // map group bulk toggles
   $('chips-all').addEventListener('click', () => setAllChips($('group-chips'), MAP_ACTIVE, true, render));
   $('chips-none').addEventListener('click', () => setAllChips($('group-chips'), MAP_ACTIVE, false, render));
+
+  // filters panel minimize/expand
+  $('filters-min').addEventListener('click', () => {
+    const min = $('filters').classList.toggle('min');
+    const btn = $('filters-min');
+    btn.textContent = min ? '+' : '–';
+    btn.setAttribute('aria-label', min ? 'Expand panel' : 'Minimize panel');
+    btn.setAttribute('aria-expanded', String(!min));
+  });
 
   // gallery controls
   $('guide-search').addEventListener('input', buildGallery);
