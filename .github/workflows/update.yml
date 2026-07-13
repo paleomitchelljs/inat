@@ -27,14 +27,19 @@ jobs:
       - name: Fetch observations
         run: python3 fetch.py mitchelljs docs/data/observations.json
 
+      - name: Fetch county-visit data (mob-rule.com)
+        # Non-fatal: if mob-rule is down, keep the last committed counties.json.
+        continue-on-error: true
+        run: python3 fetch_counties.py mitchelljs smilingcyclops
+
       - name: Commit if changed
         run: |
-          if git diff --quiet -- docs/data/observations.json; then
-            echo "No changes to observation data."
+          if git diff --quiet -- docs/data/observations.json docs/data/counties.json; then
+            echo "No changes to data."
           else
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add docs/data/observations.json
-            git commit -m "data: refresh observations ($(date -u +%Y-%m-%d))"
+            git add docs/data/observations.json docs/data/counties.json
+            git commit -m "data: refresh observations + counties ($(date -u +%Y-%m-%d))"
             git push
           fi

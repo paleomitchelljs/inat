@@ -16,8 +16,14 @@
     <span id="subtitle">loading…</span>
   </div>
   <nav class="tabs">
+    <button id="refresh" class="topbtn" type="button"
+            title="Fetch the latest observations from iNaturalist now">
+      <span class="refresh-icon" aria-hidden="true">⟳</span>
+      <span class="refresh-label">Update</span>
+    </button>
     <button class="tab active" data-view="map" type="button">Time-lapse Map</button>
     <button class="tab" data-view="guide" type="button">Field Guide</button>
+    <button class="tab" data-view="county" type="button">County Map</button>
   </nav>
 </header>
 
@@ -84,9 +90,35 @@
     </div>
     <div id="gallery"></div>
   </section>
+
+  <!-- ============ COUNTY MAP VIEW ============ -->
+  <section id="view-county" class="view">
+    <div id="cmap"></div>
+
+    <div id="county-panel" class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Counties visited</span>
+      </div>
+      <label class="csel">
+        <span>Show</span>
+        <select id="county-user" aria-label="Primary user"></select>
+      </label>
+      <label class="csel">
+        <span>Compare with</span>
+        <select id="county-compare" aria-label="Compare user">
+          <option value="">— none —</option>
+        </select>
+      </label>
+      <div id="county-stats" class="cstats"></div>
+      <div id="county-legend" class="clegend"></div>
+    </div>
+
+    <div id="county-status" class="hint">Loading county boundaries…</div>
+  </section>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
