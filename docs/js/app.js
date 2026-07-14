@@ -296,8 +296,9 @@ function render() {
   const hiThreshold = curDay - HIGHLIGHT_DAYS;
   const lo = curDay - windowDays;
   let shown = 0;
-  // MARKERS is chronological (OBS is sorted by (observed_on, id)), so pushing
-  // visible window-mode markers in loop order yields the trail in time order.
+  // MARKERS is chronological (OBS is sorted by observation instant, then id), so
+  // pushing visible window-mode markers in loop order yields the trail in time
+  // order — including several observations made on the same calendar day.
   const trailPts = [];
 
   for (const m of MARKERS) {
@@ -400,9 +401,25 @@ function compactLive(o) {
   };
 }
 
+// Sort key mirroring fetch.py's obs_sort_key: [observed date, local clock
+// seconds, id]. Same-day records follow clock time (not upload order) so the
+// window-mode trail doesn't zigzag; date stays primary to match the timeline.
+// The ISO time is local to its own offset, so its H:M:S is the wall-clock time.
+function obsSortKey(o) {
+  const d = o.observed_on || '0000-00-00';
+  let secs = -1;                        // no time recorded → start of the day
+  const m = o.time_observed_at && o.time_observed_at.match(/T(\d{2}):(\d{2}):(\d{2})/);
+  if (m) secs = (+m[1]) * 3600 + (+m[2]) * 60 + (+m[3]);
+  return [d, secs, o.id || 0];
+}
+function cmpObs(a, b) {
+  const ka = obsSortKey(a), kb = obsSortKey(b);
+  return (ka[0] < kb[0] ? -1 : ka[0] > kb[0] ? 1 : 0) || (ka[1] - kb[1]) || (ka[2] - kb[2]);
+}
+
 // Cursor pagination via id_above (same as fetch.py) — avoids the 10k offset cap.
 async function fetchLive(user, onProgress) {
-  const records = [];
+  const raw = [];
   let idAbove = 0;
   for (;;) {
     const url = `${INAT_API}?user_login=${encodeURIComponent(user)}`
@@ -412,14 +429,16 @@ async function fetchLive(user, onProgress) {
     const data = await resp.json();
     const results = data.results || [];
     if (!results.length) break;
-    for (const o of results) records.push(compactLive(o));
+    for (const o of results) raw.push(o);
     idAbove = results[results.length - 1].id;
-    if (onProgress) onProgress(records.length, data.total_results);
+    if (onProgress) onProgress(raw.length, data.total_results);
     if (results.length < 200) break;
   }
-  records.sort((a, b) =>
-    (a.d || '0000-00-00').localeCompare(b.d || '0000-00-00') || a.id - b.id);
-  return records;
+  // Chronological by (date, local clock time, id) so same-day records follow
+  // clock order, not upload order. Compact only after sorting — compactLive
+  // drops the timestamp cmpObs() needs.
+  raw.sort(cmpObs);
+  return raw.map(compactLive);
 }
 
 function buildPayload(user, records) {

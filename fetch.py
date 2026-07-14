@@ -96,12 +96,36 @@ def compact(o: dict) -> dict:
     }
 
 
+def obs_sort_key(o: dict) -> tuple[str, int, int]:
+    """Chronological sort key: (observed date, local clock seconds, id).
+
+    Keeping the local ``observed_on`` date primary matches the day-based
+    timeline; the local time-of-day pulled from ``time_observed_at`` then orders
+    several observations made on the *same day* by clock time instead of upload
+    order (upload order is what ``observed_on`` + ``id`` gives, and it makes the
+    window-mode trail zigzag). The time portion of the ISO timestamp is already
+    local to its own UTC offset, so its H:M:S is the wall-clock time. Records
+    without a time sort to the start of their day; undated records sort first.
+    """
+    d = o.get("observed_on") or "0000-00-00"
+    oid = o.get("id") or 0
+    secs = -1  # no time recorded → start of the day
+    ts = o.get("time_observed_at")
+    if ts:
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            secs = dt.hour * 3600 + dt.minute * 60 + dt.second
+        except ValueError:
+            pass
+    return (d, secs, oid)
+
+
 def main() -> None:
     user = sys.argv[1] if len(sys.argv) > 1 else "mitchelljs"
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("docs/data/observations.json")
 
     print(f"Fetching observations for '{user}' ...")
-    records: list[dict] = []
+    raw: list[dict] = []
     id_above = 0
     page = 0
     while True:
@@ -110,16 +134,19 @@ def main() -> None:
         results = data.get("results", [])
         if not results:
             break
-        records.extend(compact(o) for o in results)
+        raw.extend(results)
         id_above = results[-1]["id"]
         total = data.get("total_results")
-        print(f"  page {page}: +{len(results)} (have {len(records)}/{total})")
+        print(f"  page {page}: +{len(results)} (have {len(raw)}/{total})")
         if len(results) < PER_PAGE:
             break
         time.sleep(1.0)  # be polite to the API
 
-    # stable, time-ordered for playback
-    records.sort(key=lambda r: (r["d"] or "0000-00-00", r["id"]))
+    # Order by the true observation instant so same-day records follow clock time
+    # (this is what the window-mode trail connects). Compact only after sorting,
+    # since compact() drops the timestamp obs_sort_key() needs.
+    raw.sort(key=obs_sort_key)
+    records = [compact(o) for o in raw]
 
     groups: dict[str, int] = {}
     for r in records:
