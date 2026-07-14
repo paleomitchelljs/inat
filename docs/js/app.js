@@ -570,7 +570,11 @@ function buildGallery() {
 const COUNTY_TOPO_URL = 'https://unpkg.com/us-atlas@3/counties-10m.json';
 // Diff colors for compare mode.
 const CMP = { both: '#8172B3', aOnly: '#55A868', bOnly: '#DD8452' };
-const UNVISITED = { fillColor: '#3a4551', fillOpacity: 0.12, color: 'rgba(255,255,255,0.10)', weight: 0.4 };
+const UNVISITED = { fillColor: '#3a4551', fillOpacity: 0.12, color: 'rgba(255,255,255,0.13)', weight: 0.5 };
+// Dark "grout" stroke for filled counties: without a visible border, a run of
+// adjacent same-color counties merges into one shapeless blob instead of reading
+// as individual county polygons.
+const FILL_STROKE = { color: 'rgba(9,13,17,0.7)', weight: 0.7 };
 // 2-digit state FIPS → USPS (for county popups).
 const STATE_ABBR = {
   '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA', '08': 'CO',
@@ -675,21 +679,20 @@ function styleCounty(feature) {
   const fips = String(feature.id);
   const primary = $('county-user').value;
   const compare = $('county-compare').value;
-  const base = { color: 'rgba(255,255,255,0.10)', weight: 0.4 };
 
   if (compare) {
     const a = countyCode(primary, fips) != null;
     const b = countyCode(compare, fips) != null;
-    if (a && b) return { ...base, fillColor: CMP.both, fillOpacity: 0.85 };
-    if (a) return { ...base, fillColor: CMP.aOnly, fillOpacity: 0.8 };
-    if (b) return { ...base, fillColor: CMP.bOnly, fillOpacity: 0.8 };
+    if (a && b) return { ...FILL_STROKE, fillColor: CMP.both, fillOpacity: 0.9 };
+    if (a) return { ...FILL_STROKE, fillColor: CMP.aOnly, fillOpacity: 0.85 };
+    if (b) return { ...FILL_STROKE, fillColor: CMP.bOnly, fillOpacity: 0.85 };
     return UNVISITED;
   }
   const code = countyCode(primary, fips);
   if (code == null) return UNVISITED;
   const leg = COUNTY.users[primary].legend;
   const color = (leg[code] && leg[code].color) || (leg[''] && leg[''].color) || '#00FFFF';
-  return { ...base, fillColor: color, fillOpacity: 0.85 };
+  return { ...FILL_STROKE, fillColor: color, fillOpacity: 0.9 };
 }
 
 function renderCounties() {
